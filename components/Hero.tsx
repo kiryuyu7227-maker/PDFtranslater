@@ -157,7 +157,7 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
           </h1>
           
           <p className="text-lg md:text-xl text-white/70 max-w-xl mx-auto font-medium leading-relaxed drop-shadow-lg">
-            Bidirectional translation between <span className="text-white font-bold">Danish</span> and <span className="text-white font-bold">English</span> with split-screen precision. Secure, client-side, and privacy-focused.
+            High-precision PDF translation supporting <span className="text-white font-bold">English, Danish, Japanese, and Chinese</span>. Secure, client-side, and privacy-focused.
           </p>
 
           {/* Upload Card */}

@@ -1,9 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
-import { LanguageDirection, TranslationMode } from "../types";
+import { LanguageCode, TranslationMode, SUPPORTED_LANGUAGES } from "../types";
 
 export const translateText = async (
   text: string, 
-  direction: LanguageDirection = 'da-en', 
+  sourceLang: LanguageCode,
+  targetLang: LanguageCode,
   mode: TranslationMode = 'academic',
   userApiKey: string
 ): Promise<string> => {
@@ -17,9 +18,8 @@ export const translateText = async (
 
   const ai = new GoogleGenAI({ apiKey: userApiKey });
 
-  const isDanishToEnglish = direction === 'da-en';
-  const sourceLang = isDanishToEnglish ? 'Danish' : 'English';
-  const targetLang = isDanishToEnglish ? 'English' : 'Danish';
+  const sourceName = SUPPORTED_LANGUAGES[sourceLang].full;
+  const targetName = SUPPORTED_LANGUAGES[targetLang].full;
 
   // Construct Prompt based on Mode
   let systemInstruction = "";
@@ -38,9 +38,17 @@ export const translateText = async (
     
     Translation Guidelines:
     1. **Tone**: Natural, readable, and adapted to the context (e.g., if it looks like a letter, be polite; if it's a news article, be journalistic).
-    2. **Clarity**: Prioritize readability in ${targetLang} over literal word-for-word translation.
+    2. **Clarity**: Prioritize readability in ${targetName} over literal word-for-word translation.
     3. **Structure**: Use Markdown to keep the text readable (paragraphs, lists).`;
   }
+
+  // CJK (Chinese/Japanese) handling: We don't want to blindly replace newlines with spaces if the text is CJK, 
+  // as that introduces unwanted spaces between characters.
+  const isCJK = sourceLang === 'ja' || sourceLang === 'zh';
+  
+  const preprocessingNote = isCJK 
+    ? "2. **Merge Lines**: Join lines intelligently. For Chinese/Japanese, do NOT add spaces between joined characters unless necessary."
+    : "2. **Merge Lines**: Treat newlines within a sentence as spaces.";
 
   try {
     const response = await ai.models.generateContent({
@@ -49,9 +57,9 @@ export const translateText = async (
 
       Crucial Pre-processing Steps for PDF Text:
       1. **Fix Broken Words**: Reconstruct words split by hyphens at line ends (e.g., "uni-\nversity" -> "university").
-      2. **Merge Lines**: Treat newlines within a sentence as spaces.
+      ${preprocessingNote}
 
-      Task: Translate the following ${sourceLang} text to ${targetLang}. return ONLY the translated text.
+      Task: Translate the following ${sourceName} text to ${targetName}. return ONLY the translated text.
 
       Source Text:
       ${text}`,

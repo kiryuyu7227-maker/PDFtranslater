@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { PdfDocument, PdfPage, TranslationState, LanguageDirection, TranslationMode } from '../types';
+import { PdfDocument, PdfPage, TranslationState, TranslationMode, LanguageCode, SUPPORTED_LANGUAGES } from '../types';
 import { PdfViewer } from './PdfViewer';
 import { translateText } from '../services/geminiService';
 import { Button } from './Button';
-import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut, ArrowRightLeft, Settings, AlertCircle, Sparkles, GraduationCap, MessageCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut, ArrowRightLeft, Settings, AlertCircle, Sparkles, GraduationCap, MessageCircle, ArrowRight } from 'lucide-react';
 
 interface WorkspaceProps {
   pdfFile: File;
@@ -28,7 +28,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
   const [translationCache, setTranslationCache] = useState<TranslationState>({});
   const [splitRatio, setSplitRatio] = useState<number>(50); // percentage
-  const [direction, setDirection] = useState<LanguageDirection>('da-en');
+  
+  // Language State
+  const [sourceLang, setSourceLang] = useState<LanguageCode>('en');
+  const [targetLang, setTargetLang] = useState<LanguageCode>('da');
+  
   const [mode, setMode] = useState<TranslationMode>('academic');
   const [errorState, setErrorState] = useState<'NONE' | 'API_KEY' | 'GENERIC'>('NONE');
 
@@ -53,8 +57,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
     const processPage = async () => {
       if (!pdfDoc) return;
 
-      // Cache key now includes Mode so switching modes re-triggers translation
-      const cacheKey = `${pageNumber}-${direction}-${mode}`;
+      // Cache key includes source, target, and mode
+      const cacheKey = `${pageNumber}-${sourceLang}-${targetLang}-${mode}`;
 
       // Check cache first
       if (translationCache[cacheKey]) {
@@ -74,8 +78,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
         // Basic reconstruction of text
         const text = textContent.items.map((item) => item.str).join(' ');
         
-        // Pass apiKey and mode here
-        const translated = await translateText(text, direction, mode, apiKey);
+        // Pass sourceLang and targetLang
+        const translated = await translateText(text, sourceLang, targetLang, mode, apiKey);
         
         setTranslation(translated);
         setTranslationCache(prev => ({ ...prev, [cacheKey]: translated }));
@@ -92,13 +96,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
     };
 
     processPage();
-  }, [pageNumber, pdfDoc, direction, apiKey, mode]);
+  }, [pageNumber, pdfDoc, sourceLang, targetLang, apiKey, mode]);
 
   const handlePrev = () => setPageNumber(p => Math.max(1, p - 1));
   const handleNext = () => setPageNumber(p => Math.min(totalPages, p + 1));
   
-  const toggleDirection = () => {
-    setDirection(prev => prev === 'da-en' ? 'en-da' : 'da-en');
+  const handleSwapLanguages = () => {
+    setSourceLang(targetLang);
+    setTargetLang(sourceLang);
   };
 
   if (!pdfDoc) {
@@ -121,22 +126,46 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
           <div className="flex flex-col gap-1">
             <h2 className="font-display font-bold text-lg leading-none truncate max-w-[150px] md:max-w-[200px]">{pdfFile.name}</h2>
             
-            {/* Controls Row */}
-            <div className="flex items-center gap-3">
-                {/* Direction Toggle */}
-                <button 
-                onClick={toggleDirection}
-                className="text-[10px] md:text-xs text-brand-accent font-mono flex items-center gap-1 hover:text-white transition-colors uppercase tracking-wider"
-                title="Switch Language"
-                >
-                {direction === 'da-en' ? 'DA → EN' : 'EN → DA'}
-                <ArrowRightLeft className="w-3 h-3" />
-                </button>
+            {/* Controls Row - Redesigned for Dropdowns */}
+            <div className="flex items-center gap-2">
+                
+                {/* Language Selectors */}
+                <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
+                    <select 
+                        value={sourceLang}
+                        onChange={(e) => setSourceLang(e.target.value as LanguageCode)}
+                        className="bg-transparent text-[11px] md:text-xs font-mono uppercase text-center w-16 md:w-20 outline-none cursor-pointer hover:text-brand-accent transition-colors py-1"
+                        title="Source Language"
+                    >
+                        {Object.entries(SUPPORTED_LANGUAGES).map(([code, lang]) => (
+                            <option key={code} value={code}>{lang.label}</option>
+                        ))}
+                    </select>
 
-                <div className="w-px h-3 bg-white/20"></div>
+                    <button 
+                        onClick={handleSwapLanguages}
+                        className="p-1 hover:bg-white/10 rounded-full transition-colors text-brand-accent mx-0.5"
+                        title="Swap Languages"
+                    >
+                        <ArrowRightLeft className="w-3 h-3" />
+                    </button>
+
+                    <select 
+                        value={targetLang}
+                        onChange={(e) => setTargetLang(e.target.value as LanguageCode)}
+                        className="bg-transparent text-[11px] md:text-xs font-mono uppercase text-center w-16 md:w-20 outline-none cursor-pointer hover:text-brand-accent transition-colors py-1"
+                        title="Target Language"
+                    >
+                         {Object.entries(SUPPORTED_LANGUAGES).map(([code, lang]) => (
+                            <option key={code} value={code}>{lang.label}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="w-px h-3 bg-white/20 hidden sm:block"></div>
 
                 {/* Mode Toggle */}
-                <div className="flex bg-white/5 rounded-md p-0.5">
+                <div className="flex bg-white/5 rounded-md p-0.5 hidden sm:flex">
                     <button
                         onClick={() => setMode('academic')}
                         className={`px-2 py-0.5 text-[10px] md:text-xs rounded flex items-center gap-1 transition-all ${mode === 'academic' ? 'bg-brand-purple text-white shadow-sm' : 'text-white/40 hover:text-white'}`}
@@ -203,8 +232,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
         {/* Right: AI Translation */}
         <div className="h-full bg-brand-dark flex-1 overflow-y-auto relative p-6 md:p-12 border-l border-white/5" style={{ width: `${100 - splitRatio}%` }}>
            <div className="absolute top-4 left-4 z-10 flex gap-2">
-               <div className="bg-brand-accent/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-accent/20 text-brand-accent uppercase pointer-events-none">
-                    {direction === 'da-en' ? 'English' : 'Danish'} Output
+               <div className="bg-brand-accent/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-accent/20 text-brand-accent uppercase pointer-events-none flex items-center gap-2">
+                    {SUPPORTED_LANGUAGES[targetLang].label} Output
                </div>
                {mode === 'academic' && (
                     <div className="bg-brand-purple/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-purple/20 text-brand-purple flex items-center gap-1 pointer-events-none">
@@ -227,7 +256,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
                 <div className="h-32 bg-white/5 rounded border border-white/5"></div>
                 <div className="flex items-center gap-2 text-brand-accent text-sm font-mono mt-4">
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Translating via Gemini 3.0 ({mode} mode)...</span>
+                  <span>Translating {SUPPORTED_LANGUAGES[sourceLang].label} to {SUPPORTED_LANGUAGES[targetLang].label}...</span>
                 </div>
               </div>
             )}

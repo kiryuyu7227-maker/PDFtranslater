@@ -25,7 +25,15 @@ export interface TranslationState {
   [key: string]: string; // Cache translations per page+direction+mode
 }
 
-export type LanguageDirection = 'da-en' | 'en-da';
+// Define supported languages
+export type LanguageCode = 'en' | 'da' | 'ja' | 'zh';
+
+export const SUPPORTED_LANGUAGES: Record<LanguageCode, { label: string; full: string }> = {
+  en: { label: 'English', full: 'English' },
+  da: { label: 'Danish', full: 'Danish' },
+  ja: { label: 'Japanese', full: 'Japanese' },
+  zh: { label: 'Chinese', full: 'Simplified Chinese' },
+};
 
 export type TranslationMode = 'academic' | 'general';
 
