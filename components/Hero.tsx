@@ -1,12 +1,14 @@
 import React, { useRef } from 'react';
-import { Upload, ArrowRight, FileText } from 'lucide-react';
+import { Upload, FileText, Settings, Key, Sparkles } from 'lucide-react';
 import { Button } from './Button';
 
 interface HeroProps {
   onFileSelect: (file: File) => void;
+  onOpenSettings: () => void;
+  hasApiKey: boolean;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onFileSelect }) => {
+export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApiKey }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -29,53 +31,90 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect }) => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden p-6">
-      {/* Background Ambience */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-brand-accent/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[800px] h-[600px] bg-brand-purple/10 rounded-full blur-[120px] pointer-events-none" />
+      
+      {/* --- BACKGROUND LAYER --- */}
+      <div className="absolute inset-0 z-0 select-none">
+        {/* The Cat Image - Assumes file is named 'cat.jpg' in the root */}
+        <img 
+          src="./cat.jpg" 
+          alt="Majestic Cat Background" 
+          className="w-full h-full object-cover object-center scale-105 opacity-60"
+        />
+        
+        {/* Gradient Overlays for Readability */}
+        {/* Bottom fade to black */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+        {/* Top fade for header */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/90 via-transparent to-transparent" />
+        {/* Radical vignette */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-transparent to-[#050505]" />
+      </div>
 
-      {/* Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
+      {/* --- NAVIGATION --- */}
+      <div className="absolute top-6 right-6 z-20">
+        <Button 
+          variant="secondary" 
+          onClick={onOpenSettings} 
+          className="!px-5 !py-2.5 !text-sm !bg-black/40 !backdrop-blur-xl border-white/10 hover:!bg-white/10 transition-all"
+          icon={hasApiKey ? <Settings className="w-4 h-4" /> : <Key className="w-4 h-4 text-brand-accent" />}
+        >
+          {hasApiKey ? 'Settings' : 'Set API Key'}
+        </Button>
+      </div>
 
-      <div className="relative z-10 max-w-5xl w-full text-center space-y-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-xs font-mono text-brand-accent mb-4">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-accent"></span>
-          </span>
-          GEMINI 3.0 FLASH POWERED
+      {/* --- CONTENT LAYER --- */}
+      <div className="relative z-10 max-w-6xl w-full text-center space-y-10 flex flex-col items-center">
+        
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-black/30 backdrop-blur-md text-xs font-bold tracking-wider text-brand-accent mb-2 animate-float">
+          <Sparkles className="w-3 h-3 text-brand-warm" />
+          <span>GEMINI 3.0 FLASH POWERED</span>
         </div>
 
-        <h1 className="text-7xl md:text-9xl font-display font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 leading-[0.9]">
-          DANISH<br/>
-          <span className="text-stroke text-transparent" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.2)' }}>↔ ENGLISH</span>
+        {/* Main Title - Updated Font */}
+        <h1 className="text-6xl md:text-8xl lg:text-9xl font-display font-extrabold tracking-tight text-white leading-[0.9] drop-shadow-2xl">
+          NORDIC<span className="text-brand-accent">LINK</span>
+          <br/>
+          <span className="text-4xl md:text-6xl lg:text-7xl font-light text-white/60 tracking-normal block mt-2">
+            AI TRANSLATOR
+          </span>
         </h1>
         
-        <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto font-light leading-relaxed">
-          Experience document translation reimaged. High-fidelity PDF rendering with split-screen AI translation for Danish and English academic documents.
+        <p className="text-lg md:text-xl text-white/70 max-w-xl mx-auto font-medium leading-relaxed drop-shadow-lg">
+          Transform Danish academic PDFs into clear English with <span className="text-white font-bold">split-screen precision</span>. Secure, client-side, and privacy-focused.
         </p>
 
+        {/* Upload Card - Glassmorphism */}
         <div 
-          className="mt-12 group relative w-full max-w-xl mx-auto"
+          className="mt-8 group relative w-full max-w-xl mx-auto perspective-1000"
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-accent to-brand-purple rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-          <div className="relative bg-[#0F0F0F] border border-white/10 rounded-3xl p-8 md:p-12 flex flex-col items-center gap-6 transition duration-300 hover:border-white/20 hover:bg-[#141414]">
-            <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform duration-300">
-              <Upload className="w-8 h-8 text-white/80" />
+          {/* Glow effect behind card */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-brand-accent via-brand-purple to-brand-warm rounded-[2rem] blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
+          
+          <div className="relative glass-panel rounded-[1.8rem] p-10 md:p-14 flex flex-col items-center gap-8 transition duration-500 group-hover:scale-[1.01] group-hover:bg-black/50">
+            <div className="w-24 h-24 bg-gradient-to-br from-white/10 to-transparent rounded-3xl flex items-center justify-center border border-white/10 shadow-2xl group-hover:rotate-6 transition-transform duration-500">
+              <Upload className="w-10 h-10 text-white" />
             </div>
             
-            <div className="space-y-2">
-              <h3 className="text-2xl font-display font-medium text-white">Upload Document</h3>
-              <p className="text-white/40 text-sm">Drag & drop your PDF or click to browse</p>
+            <div className="space-y-3">
+              <h3 className="text-3xl font-display font-bold text-white">Upload Document</h3>
+              <p className="text-white/50 text-sm font-medium">Drag & drop PDF or click to browse</p>
             </div>
 
             <Button 
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full max-w-xs"
-              icon={<FileText className="w-4 h-4" />}
+              onClick={() => {
+                if (!hasApiKey) {
+                  onOpenSettings();
+                } else {
+                  fileInputRef.current?.click();
+                }
+              }}
+              className="w-full max-w-xs !h-14 !text-lg !font-bold shadow-xl shadow-brand-accent/10"
+              icon={<FileText className="w-5 h-5" />}
             >
-              Select PDF
+              {hasApiKey ? 'Select PDF File' : 'Set API Key First'}
             </Button>
             
             <input 
@@ -91,12 +130,22 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect }) => {
         </div>
       </div>
 
-      <div className="absolute bottom-8 left-0 w-full flex justify-center gap-8 text-white/20 text-xs font-mono uppercase tracking-widest">
-        <span>Privacy First</span>
-        <span>•</span>
-        <span>Local Rendering</span>
-        <span>•</span>
-        <span>Neural Translation</span>
+      {/* Footer Info */}
+      <div className="absolute bottom-8 w-full flex justify-center items-center gap-6 text-white/30 text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase z-20">
+        <span className="flex items-center gap-2">
+           <div className="w-1.5 h-1.5 bg-brand-accent rounded-full"></div> 
+           Client Side
+        </span>
+        <span className="w-px h-3 bg-white/10"></span>
+        <span className="flex items-center gap-2">
+           <div className="w-1.5 h-1.5 bg-brand-purple rounded-full"></div> 
+           Zero Latency
+        </span>
+        <span className="w-px h-3 bg-white/10"></span>
+        <span className="flex items-center gap-2">
+           <div className="w-1.5 h-1.5 bg-brand-warm rounded-full"></div> 
+           Hygge Mode
+        </span>
       </div>
     </div>
   );

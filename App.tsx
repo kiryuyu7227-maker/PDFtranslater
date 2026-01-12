@@ -1,41 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { Workspace } from './components/Workspace';
+import { ApiKeyModal } from './components/ApiKeyModal';
 import { AppState } from './types';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
+  
+  // State for API Key and Modal
+  const [apiKey, setApiKey] = useState<string>('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // Load key from storage on mount
+  // We explicitly REMOVED process.env.API_KEY fallback to ensure this is a pure BYOK (Bring Your Own Key) app.
+  // This prevents the developer's key from accidentally being included in the build.
+  useEffect(() => {
+    const storedKey = localStorage.getItem('nordiclink_api_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+  }, []);
+
+  const handleSaveApiKey = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('nordiclink_api_key', key);
+    setIsSettingsOpen(false);
+  };
 
   const handleFileSelect = (file: File) => {
     setCurrentFile(file);
     setAppState(AppState.VIEWING);
   };
 
-  const handleClose = () => {
+  const handleCloseWorkspace = () => {
     setCurrentFile(null);
     setAppState(AppState.IDLE);
   };
 
+  const hasValidKey = !!apiKey;
+
   return (
     <main className="w-full h-full min-h-screen bg-brand-dark text-white selection:bg-brand-accent selection:text-black">
       {appState === AppState.IDLE && (
-        <Hero onFileSelect={handleFileSelect} />
+        <Hero 
+          onFileSelect={handleFileSelect} 
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          hasApiKey={hasValidKey}
+        />
       )}
       
       {appState === AppState.VIEWING && currentFile && (
-        <Workspace pdfFile={currentFile} onClose={handleClose} />
+        <Workspace 
+          pdfFile={currentFile} 
+          onClose={handleCloseWorkspace} 
+          apiKey={apiKey}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
       )}
 
-      {/* API Key Warning Overlay (Only if env is missing, for demo robustness) */}
-      {!process.env.API_KEY && (
-        <div className="fixed bottom-4 right-4 max-w-sm bg-red-900/20 border border-red-500/50 p-4 rounded-lg backdrop-blur-md z-50">
-          <h4 className="text-red-400 font-bold text-sm mb-1">Missing API Key</h4>
-          <p className="text-xs text-red-200/70">
-            Please ensure <code>process.env.API_KEY</code> is set to use the Gemini Translation service.
-          </p>
-        </div>
-      )}
+      <ApiKeyModal 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={handleSaveApiKey}
+        initialKey={apiKey}
+      />
     </main>
   );
 };

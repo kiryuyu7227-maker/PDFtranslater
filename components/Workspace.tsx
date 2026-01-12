@@ -3,11 +3,13 @@ import { PdfDocument, PdfPage, TranslationState, LanguageDirection } from '../ty
 import { PdfViewer } from './PdfViewer';
 import { translateText } from '../services/geminiService';
 import { Button } from './Button';
-import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut, ArrowRightLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut, ArrowRightLeft, Settings, AlertCircle } from 'lucide-react';
 
 interface WorkspaceProps {
   pdfFile: File;
   onClose: () => void;
+  apiKey: string;
+  onOpenSettings: () => void;
 }
 
 // Global variable to access PDFJS
@@ -17,7 +19,7 @@ declare global {
   }
 }
 
-export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
+export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, onOpenSettings }) => {
   const [pdfDoc, setPdfDoc] = useState<PdfDocument | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(0);
@@ -27,6 +29,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
   const [translationCache, setTranslationCache] = useState<TranslationState>({});
   const [splitRatio, setSplitRatio] = useState<number>(50); // percentage
   const [direction, setDirection] = useState<LanguageDirection>('da-en');
+  const [errorState, setErrorState] = useState<'NONE' | 'API_KEY' | 'GENERIC'>('NONE');
 
   // Load PDF
   useEffect(() => {
@@ -54,11 +57,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
       // Check cache first
       if (translationCache[cacheKey]) {
         setTranslation(translationCache[cacheKey]);
+        setErrorState('NONE');
         return;
       }
 
       setIsTranslating(true);
       setTranslation(''); // Clear previous while loading
+      setErrorState('NONE');
 
       try {
         const page: PdfPage = await pdfDoc.getPage(pageNumber);
@@ -67,20 +72,25 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
         // Basic reconstruction of text
         const text = textContent.items.map((item) => item.str).join(' ');
         
-        const translated = await translateText(text, direction);
+        // Pass apiKey here
+        const translated = await translateText(text, direction, apiKey);
         
         setTranslation(translated);
         setTranslationCache(prev => ({ ...prev, [cacheKey]: translated }));
-      } catch (err) {
+      } catch (err: any) {
         console.error("Translation logic error:", err);
-        setTranslation("Error processing document text.");
+        if (err.message === 'INVALID_API_KEY' || err.message === 'MISSING_API_KEY') {
+           setErrorState('API_KEY');
+        } else {
+           setErrorState('GENERIC');
+        }
       } finally {
         setIsTranslating(false);
       }
     };
 
     processPage();
-  }, [pageNumber, pdfDoc, direction]);
+  }, [pageNumber, pdfDoc, direction, apiKey]);
 
   const handlePrev = () => setPageNumber(p => Math.max(1, p - 1));
   const handleNext = () => setPageNumber(p => Math.min(totalPages, p + 1));
@@ -132,6 +142,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
         </div>
 
         <div className="flex items-center gap-2">
+           <Button variant="ghost" onClick={onOpenSettings} className="!p-2 !text-white/40 hover:!text-white">
+             <Settings className="w-4 h-4" />
+           </Button>
+           <div className="w-px h-4 bg-white/10 mx-1"></div>
            <Button variant="ghost" onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="!p-2">
              <ZoomOut className="w-4 h-4" />
            </Button>
@@ -162,7 +176,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
           </div>
 
           <div className="max-w-3xl mx-auto mt-6">
-            {isTranslating ? (
+            {isTranslating && (
               <div className="space-y-6 animate-pulse">
                 <div className="h-4 bg-white/10 rounded w-3/4"></div>
                 <div className="h-4 bg-white/10 rounded w-full"></div>
@@ -173,7 +187,29 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
                   <span>Translating via Gemini 3.0...</span>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {!isTranslating && errorState === 'API_KEY' && (
+               <div className="flex flex-col items-center justify-center h-64 text-center p-6 bg-red-500/10 rounded-xl border border-red-500/20">
+                  <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
+                  <h3 className="text-lg font-bold text-white mb-2">Authentication Error</h3>
+                  <p className="text-white/60 text-sm mb-6 max-w-sm">
+                    Your Google Gemini API Key appears to be invalid, expired, or missing permissions.
+                  </p>
+                  <Button onClick={onOpenSettings} variant="secondary">
+                    Update API Key
+                  </Button>
+               </div>
+            )}
+
+            {!isTranslating && errorState === 'GENERIC' && (
+               <div className="flex flex-col items-center justify-center h-64 text-center text-white/50">
+                  <p>Translation service temporarily unavailable.</p>
+                  <Button onClick={() => window.location.reload()} variant="ghost" className="mt-4">Reload App</Button>
+               </div>
+            )}
+
+            {!isTranslating && errorState === 'NONE' && translation && (
               <div className="prose prose-invert prose-lg max-w-none">
                  {/* Simple Markdown Rendering */}
                  {translation.split('\n').map((line, idx) => (
@@ -184,7 +220,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
               </div>
             )}
             
-            {!isTranslating && !translation && (
+            {!isTranslating && errorState === 'NONE' && !translation && (
                <div className="flex flex-col items-center justify-center h-64 text-white/30">
                  <p>No text detected on this page.</p>
                </div>
