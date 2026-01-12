@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Upload, FileText, Settings, Key, Sparkles, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, FileText, Settings, Key, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { Button } from './Button';
 
 interface HeroProps {
@@ -8,25 +8,25 @@ interface HeroProps {
   hasApiKey: boolean;
 }
 
-// List of filenames to try automatically
+// STRATEGY: Try local paths first, but fail-safe to a cute Pomeranian.
 const BG_CANDIDATES = [
-  'cat.jpg', 
-  'cat.JPG', 
-  'cat.jpeg', 
-  'cat.png', 
-  'cat.HEIC', // Note: HEIC only works on Safari
-  'cat.heic'
+  '/cat.JPG',   // 1. Try absolute root path
+  '../cat.JPG', // 2. Try relative path
+  'cat.JPG',    // 3. Try current folder
+  '/cat.jpg',   // 4. Try lowercase root
+  // 5. Fail-safe: A cute, high-contrast Pomeranian puppy that looks great on dark mode
+  'https://images.unsplash.com/photo-1563496336336-e2a22830f027?q=80&w=2600&auto=format&fit=crop' 
 ];
 
 export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApiKey }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   
-  // Image Loading State
-  const [candidateIndex, setCandidateIndex] = useState(0);
+  // State
+  const [currentCandidateIndex, setCurrentCandidateIndex] = useState(0);
   const [bgImage, setBgImage] = useState<string>(BG_CANDIDATES[0]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isManualImage, setIsManualImage] = useState(false);
-  const [hasFinalError, setHasFinalError] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -49,25 +49,29 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
   const handleBgSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      if (file.name.toLowerCase().endsWith('.heic')) {
+          alert("Warning: HEIC files are not supported by browsers. Please use JPG or PNG.");
+      }
+
       const imageUrl = URL.createObjectURL(file);
       setBgImage(imageUrl);
       setIsManualImage(true);
-      setHasFinalError(false);
+      setIsLoaded(false); 
     }
   };
 
-  const handleImageError = () => {
-    // If it's a manual image, don't try to loop candidates
-    if (isManualImage) return;
+  const handleImageLoad = () => {
+    setIsLoaded(true);
+  };
 
-    const nextIndex = candidateIndex + 1;
+  const handleImageError = () => {
+    if (isManualImage) return; 
+
+    const nextIndex = currentCandidateIndex + 1;
     if (nextIndex < BG_CANDIDATES.length) {
-      console.log(`Failed to load ${BG_CANDIDATES[candidateIndex]}, trying ${BG_CANDIDATES[nextIndex]}...`);
-      setCandidateIndex(nextIndex);
+      setCurrentCandidateIndex(nextIndex);
       setBgImage(BG_CANDIDATES[nextIndex]);
-    } else {
-      console.error("All background image candidates failed to load.");
-      setHasFinalError(true);
     }
   };
 
@@ -76,27 +80,28 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
       
       {/* --- BACKGROUND LAYER --- */}
       <div className="absolute inset-0 z-0 select-none bg-[#050505]">
-        {!hasFinalError ? (
-            <img 
-              src={bgImage} 
-              alt="Background" 
-              className="w-full h-full object-cover object-center scale-105 opacity-60 transition-opacity duration-700 animate-in fade-in"
-              onError={handleImageError}
-            />
-        ) : (
-            // Fallback elegant gradient if image missing
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-gray via-brand-dark to-black opacity-80" />
-        )}
+        <img 
+            key={bgImage} 
+            src={bgImage} 
+            alt="Background" 
+            className={`w-full h-full object-cover object-center scale-105 transition-opacity duration-1000 ${
+                isLoaded ? 'opacity-60' : 'opacity-0'
+            }`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+        />
         
-        {/* Gradient Overlays for Readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/90 via-transparent to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-transparent to-[#050505]" />
+        {/* Loading / Error Fallback Gradient */}
+        <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-gray via-brand-dark to-black transition-opacity duration-700 ${isLoaded ? 'opacity-0' : 'opacity-100'}`} />
+        
+        {/* Cinematic Overlays - Adjusted for better text contrast over the bright puppy */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/70 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/80 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-black/30" /> 
       </div>
 
       {/* --- NAVIGATION --- */}
       <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
-        {/* Change Background Button */}
         <div className="relative group">
             <Button 
             variant="secondary" 
@@ -106,19 +111,13 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
             >
             <ImageIcon className="w-4 h-4 text-white/70" />
             </Button>
-            {hasFinalError && (
-                <div className="absolute top-10 right-0 w-48 bg-red-500/10 border border-red-500/20 backdrop-blur-md p-2 rounded text-xs text-red-200 flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>Image not found. Click here to upload manually.</span>
-                </div>
-            )}
         </div>
         
         <input 
             type="file" 
             ref={bgInputRef} 
             className="hidden" 
-            accept="image/*"
+            accept="image/png, image/jpeg, image/jpg"
             onChange={handleBgSelect} 
         />
 
@@ -160,7 +159,6 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
-          {/* Glow effect */}
           <div className="absolute -inset-1 bg-gradient-to-r from-brand-accent via-brand-purple to-brand-warm rounded-[2rem] blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
           
           <div className="relative glass-panel rounded-[1.8rem] p-10 md:p-14 flex flex-col items-center gap-8 transition duration-500 group-hover:scale-[1.01] group-hover:bg-black/50">
