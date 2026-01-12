@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { PdfDocument, PdfPage, TranslationState } from '../types';
+import { PdfDocument, PdfPage, TranslationState, LanguageDirection } from '../types';
 import { PdfViewer } from './PdfViewer';
 import { translateText } from '../services/geminiService';
 import { Button } from './Button';
-import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut, ArrowRightLeft } from 'lucide-react';
 
 interface WorkspaceProps {
   pdfFile: File;
@@ -26,6 +26,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
   const [translationCache, setTranslationCache] = useState<TranslationState>({});
   const [splitRatio, setSplitRatio] = useState<number>(50); // percentage
+  const [direction, setDirection] = useState<LanguageDirection>('da-en');
 
   // Load PDF
   useEffect(() => {
@@ -48,9 +49,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
     const processPage = async () => {
       if (!pdfDoc) return;
 
+      const cacheKey = `${pageNumber}-${direction}`;
+
       // Check cache first
-      if (translationCache[pageNumber]) {
-        setTranslation(translationCache[pageNumber]);
+      if (translationCache[cacheKey]) {
+        setTranslation(translationCache[cacheKey]);
         return;
       }
 
@@ -64,10 +67,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
         // Basic reconstruction of text
         const text = textContent.items.map((item) => item.str).join(' ');
         
-        const translated = await translateText(text);
+        const translated = await translateText(text, direction);
         
         setTranslation(translated);
-        setTranslationCache(prev => ({ ...prev, [pageNumber]: translated }));
+        setTranslationCache(prev => ({ ...prev, [cacheKey]: translated }));
       } catch (err) {
         console.error("Translation logic error:", err);
         setTranslation("Error processing document text.");
@@ -77,10 +80,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
     };
 
     processPage();
-  }, [pageNumber, pdfDoc]);
+  }, [pageNumber, pdfDoc, direction]);
 
   const handlePrev = () => setPageNumber(p => Math.max(1, p - 1));
   const handleNext = () => setPageNumber(p => Math.min(totalPages, p + 1));
+  
+  const toggleDirection = () => {
+    setDirection(prev => prev === 'da-en' ? 'en-da' : 'da-en');
+  };
 
   if (!pdfDoc) {
     return (
@@ -99,9 +106,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
           <Button variant="ghost" onClick={onClose} className="!p-2 !rounded-lg">
             <X className="w-5 h-5" />
           </Button>
-          <div>
-            <h2 className="font-display font-bold text-lg leading-tight truncate max-w-xs">{pdfFile.name}</h2>
-            <p className="text-xs text-white/40 font-mono">DANISH DETECTED</p>
+          <div className="flex flex-col">
+            <h2 className="font-display font-bold text-lg leading-tight truncate max-w-[200px]">{pdfFile.name}</h2>
+            <button 
+              onClick={toggleDirection}
+              className="text-xs text-brand-accent font-mono flex items-center gap-1.5 hover:text-white transition-colors mt-0.5 text-left"
+              title="Click to switch translation direction"
+            >
+              {direction === 'da-en' ? 'DANISH → ENGLISH' : 'ENGLISH → DANISH'}
+              <ArrowRightLeft className="w-3 h-3" />
+            </button>
           </div>
         </div>
 
@@ -144,7 +158,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose }) => {
         {/* Right: AI Translation */}
         <div className="h-full bg-brand-dark flex-1 overflow-y-auto relative p-8 md:p-12 border-l border-white/5" style={{ width: `${100 - splitRatio}%` }}>
            <div className="absolute top-4 left-4 z-10 bg-brand-accent/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-accent/20 text-brand-accent">
-            AI TRANSLATED
+            AI TRANSLATED ({direction === 'da-en' ? 'EN' : 'DA'})
           </div>
 
           <div className="max-w-3xl mx-auto mt-6">

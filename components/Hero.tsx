@@ -47,11 +47,11 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect }) => {
 
         <h1 className="text-7xl md:text-9xl font-display font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 leading-[0.9]">
           DANISH<br/>
-          <span className="text-stroke text-transparent" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.2)' }}>TO ENGLISH</span>
+          <span className="text-stroke text-transparent" style={{ WebkitTextStroke: '1px rgba(255,255,255,0.2)' }}>↔ ENGLISH</span>
         </h1>
         
         <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto font-light leading-relaxed">
-          Experience document translation reimaged. High-fidelity PDF rendering with split-screen AI translation specifically tuned for Danish academic and technical documents.
+          Experience document translation reimaged. High-fidelity PDF rendering with split-screen AI translation for Danish and English academic documents.
         </p>
 
         <div 

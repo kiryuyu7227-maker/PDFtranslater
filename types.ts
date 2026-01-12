@@ -22,8 +22,10 @@ export interface TextContent {
 }
 
 export interface TranslationState {
-  [pageNumber: number]: string; // Cache translations per page
+  [key: string]: string; // Cache translations per page+direction (e.g. "1-da-en")
 }
+
+export type LanguageDirection = 'da-en' | 'en-da';
 
 export enum AppState {
   IDLE = 'IDLE',
