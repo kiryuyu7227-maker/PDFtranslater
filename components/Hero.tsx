@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FileText, Settings, Key, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Upload, FileText, Settings, Key, Sparkles, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
 
 interface HeroProps {
@@ -8,13 +8,25 @@ interface HeroProps {
   hasApiKey: boolean;
 }
 
+// List of filenames to try automatically
+const BG_CANDIDATES = [
+  'cat.jpg', 
+  'cat.JPG', 
+  'cat.jpeg', 
+  'cat.png', 
+  'cat.HEIC', // Note: HEIC only works on Safari
+  'cat.heic'
+];
+
 export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApiKey }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   
-  // Default to 'cat.jpg', but allow user to override if it doesn't load
-  const [bgImage, setBgImage] = useState<string>('cat.jpg');
-  const [bgLoadError, setBgLoadError] = useState<boolean>(false);
+  // Image Loading State
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [bgImage, setBgImage] = useState<string>(BG_CANDIDATES[0]);
+  const [isManualImage, setIsManualImage] = useState(false);
+  const [hasFinalError, setHasFinalError] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -39,7 +51,23 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
       const file = e.target.files[0];
       const imageUrl = URL.createObjectURL(file);
       setBgImage(imageUrl);
-      setBgLoadError(false);
+      setIsManualImage(true);
+      setHasFinalError(false);
+    }
+  };
+
+  const handleImageError = () => {
+    // If it's a manual image, don't try to loop candidates
+    if (isManualImage) return;
+
+    const nextIndex = candidateIndex + 1;
+    if (nextIndex < BG_CANDIDATES.length) {
+      console.log(`Failed to load ${BG_CANDIDATES[candidateIndex]}, trying ${BG_CANDIDATES[nextIndex]}...`);
+      setCandidateIndex(nextIndex);
+      setBgImage(BG_CANDIDATES[nextIndex]);
+    } else {
+      console.error("All background image candidates failed to load.");
+      setHasFinalError(true);
     }
   };
 
@@ -48,20 +76,12 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
       
       {/* --- BACKGROUND LAYER --- */}
       <div className="absolute inset-0 z-0 select-none bg-[#050505]">
-        {!bgLoadError ? (
+        {!hasFinalError ? (
             <img 
               src={bgImage} 
               alt="Background" 
-              className="w-full h-full object-cover object-center scale-105 opacity-60 transition-opacity duration-700"
-              onError={() => {
-                console.warn("Background image failed to load. Trying uppercase...");
-                // Simple fallback logic or just mark as error to show gradient
-                if (bgImage === 'cat.jpg') {
-                    setBgImage('cat.JPG'); // Try uppercase extension
-                } else if (bgImage === 'cat.JPG') {
-                    setBgLoadError(true); // Give up and show dark bg
-                }
-              }}
+              className="w-full h-full object-cover object-center scale-105 opacity-60 transition-opacity duration-700 animate-in fade-in"
+              onError={handleImageError}
             />
         ) : (
             // Fallback elegant gradient if image missing
@@ -77,14 +97,23 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
       {/* --- NAVIGATION --- */}
       <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
         {/* Change Background Button */}
-        <Button 
-          variant="secondary" 
-          onClick={() => bgInputRef.current?.click()} 
-          className="!px-3 !py-2.5 !bg-black/40 !backdrop-blur-xl border-white/10 hover:!bg-white/10"
-          title="Change Background Image"
-        >
-          <ImageIcon className="w-4 h-4 text-white/70" />
-        </Button>
+        <div className="relative group">
+            <Button 
+            variant="secondary" 
+            onClick={() => bgInputRef.current?.click()} 
+            className="!px-3 !py-2.5 !bg-black/40 !backdrop-blur-xl border-white/10 hover:!bg-white/10"
+            title="Change Background Image"
+            >
+            <ImageIcon className="w-4 h-4 text-white/70" />
+            </Button>
+            {hasFinalError && (
+                <div className="absolute top-10 right-0 w-48 bg-red-500/10 border border-red-500/20 backdrop-blur-md p-2 rounded text-xs text-red-200 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>Image not found. Click here to upload manually.</span>
+                </div>
+            )}
+        </div>
+        
         <input 
             type="file" 
             ref={bgInputRef} 
