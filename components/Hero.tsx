@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { Upload, FileText, Settings, Key, Sparkles } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Upload, FileText, Settings, Key, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { Button } from './Button';
 
 interface HeroProps {
@@ -10,6 +10,11 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApiKey }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
+  
+  // Default to 'cat.jpg', but allow user to override if it doesn't load
+  const [bgImage, setBgImage] = useState<string>('cat.jpg');
+  const [bgLoadError, setBgLoadError] = useState<boolean>(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -29,29 +34,65 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
     }
   };
 
+  const handleBgSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const imageUrl = URL.createObjectURL(file);
+      setBgImage(imageUrl);
+      setBgLoadError(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden p-6">
       
       {/* --- BACKGROUND LAYER --- */}
-      <div className="absolute inset-0 z-0 select-none">
-        {/* The Cat Image - Assumes file is named 'cat.jpg' in the root */}
-        <img 
-          src="./cat.jpg" 
-          alt="Majestic Cat Background" 
-          className="w-full h-full object-cover object-center scale-105 opacity-60"
-        />
+      <div className="absolute inset-0 z-0 select-none bg-[#050505]">
+        {!bgLoadError ? (
+            <img 
+              src={bgImage} 
+              alt="Background" 
+              className="w-full h-full object-cover object-center scale-105 opacity-60 transition-opacity duration-700"
+              onError={() => {
+                console.warn("Background image failed to load. Trying uppercase...");
+                // Simple fallback logic or just mark as error to show gradient
+                if (bgImage === 'cat.jpg') {
+                    setBgImage('cat.JPG'); // Try uppercase extension
+                } else if (bgImage === 'cat.JPG') {
+                    setBgLoadError(true); // Give up and show dark bg
+                }
+              }}
+            />
+        ) : (
+            // Fallback elegant gradient if image missing
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-gray via-brand-dark to-black opacity-80" />
+        )}
         
         {/* Gradient Overlays for Readability */}
-        {/* Bottom fade to black */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
-        {/* Top fade for header */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/90 via-transparent to-transparent" />
-        {/* Radical vignette */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-transparent to-[#050505]" />
       </div>
 
       {/* --- NAVIGATION --- */}
-      <div className="absolute top-6 right-6 z-20">
+      <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+        {/* Change Background Button */}
+        <Button 
+          variant="secondary" 
+          onClick={() => bgInputRef.current?.click()} 
+          className="!px-3 !py-2.5 !bg-black/40 !backdrop-blur-xl border-white/10 hover:!bg-white/10"
+          title="Change Background Image"
+        >
+          <ImageIcon className="w-4 h-4 text-white/70" />
+        </Button>
+        <input 
+            type="file" 
+            ref={bgInputRef} 
+            className="hidden" 
+            accept="image/*"
+            onChange={handleBgSelect} 
+        />
+
         <Button 
           variant="secondary" 
           onClick={onOpenSettings} 
@@ -71,7 +112,7 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
           <span>GEMINI 3.0 FLASH POWERED</span>
         </div>
 
-        {/* Main Title - Updated Font */}
+        {/* Main Title */}
         <h1 className="text-6xl md:text-8xl lg:text-9xl font-display font-extrabold tracking-tight text-white leading-[0.9] drop-shadow-2xl">
           NORDIC<span className="text-brand-accent">LINK</span>
           <br/>
@@ -84,13 +125,13 @@ export const Hero: React.FC<HeroProps> = ({ onFileSelect, onOpenSettings, hasApi
           Transform Danish academic PDFs into clear English with <span className="text-white font-bold">split-screen precision</span>. Secure, client-side, and privacy-focused.
         </p>
 
-        {/* Upload Card - Glassmorphism */}
+        {/* Upload Card */}
         <div 
           className="mt-8 group relative w-full max-w-xl mx-auto perspective-1000"
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
-          {/* Glow effect behind card */}
+          {/* Glow effect */}
           <div className="absolute -inset-1 bg-gradient-to-r from-brand-accent via-brand-purple to-brand-warm rounded-[2rem] blur-xl opacity-20 group-hover:opacity-40 transition duration-700"></div>
           
           <div className="relative glass-panel rounded-[1.8rem] p-10 md:p-14 flex flex-col items-center gap-8 transition duration-500 group-hover:scale-[1.01] group-hover:bg-black/50">
