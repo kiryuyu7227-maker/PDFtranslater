@@ -22,10 +22,12 @@ export interface TextContent {
 }
 
 export interface TranslationState {
-  [key: string]: string; // Cache translations per page+direction (e.g. "1-da-en")
+  [key: string]: string; // Cache translations per page+direction+mode
 }
 
 export type LanguageDirection = 'da-en' | 'en-da';
+
+export type TranslationMode = 'academic' | 'general';
 
 export enum AppState {
   IDLE = 'IDLE',

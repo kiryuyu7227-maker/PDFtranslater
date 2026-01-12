@@ -1,9 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
-import { LanguageDirection } from "../types";
+import { LanguageDirection, TranslationMode } from "../types";
 
 export const translateText = async (
   text: string, 
   direction: LanguageDirection = 'da-en', 
+  mode: TranslationMode = 'academic',
   userApiKey: string
 ): Promise<string> => {
   
@@ -20,23 +21,39 @@ export const translateText = async (
   const sourceLang = isDanishToEnglish ? 'Danish' : 'English';
   const targetLang = isDanishToEnglish ? 'English' : 'Danish';
 
+  // Construct Prompt based on Mode
+  let systemInstruction = "";
+  
+  if (mode === 'academic') {
+    systemInstruction = `You are an expert translator specializing in academic and scientific PDF documents.
+    
+    Translation Guidelines:
+    1. **Tone**: Academic, precise, formal, and objective.
+    2. **Math/Latex**: EXTREMELY IMPORTANT. Preserve all mathematical notation, formulas, and variable names exactly as is. Do not translate variables (e.g., keep 'x', 'y' as is).
+    3. **Structure**: Maintain the original logical flow and paragraph structure.
+    4. **Formatting**: Use Markdown. If input is a header, make it a header.`;
+  } else {
+    // General Mode
+    systemInstruction = `You are a professional translator specializing in natural, fluent communication.
+    
+    Translation Guidelines:
+    1. **Tone**: Natural, readable, and adapted to the context (e.g., if it looks like a letter, be polite; if it's a news article, be journalistic).
+    2. **Clarity**: Prioritize readability in ${targetLang} over literal word-for-word translation.
+    3. **Structure**: Use Markdown to keep the text readable (paragraphs, lists).`;
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are an expert translator specializing in academic PDF documents. Translate the following ${sourceLang} text to ${targetLang}.
+      contents: `${systemInstruction}
 
-      Crucial Pre-processing Steps:
-      1. **Fix Broken Words**: PDFs often split words with hyphens at line ends (e.g., "uni-\nversity"). Reconstruct these into full words ("university") before translating.
-      2. **Merge Lines**: PDFs often have hard line breaks within sentences. Treat newlines within a paragraph as spaces, unless it's a clear paragraph break.
+      Crucial Pre-processing Steps for PDF Text:
+      1. **Fix Broken Words**: Reconstruct words split by hyphens at line ends (e.g., "uni-\nversity" -> "university").
+      2. **Merge Lines**: Treat newlines within a sentence as spaces.
 
-      Translation Guidelines:
-      1. **Tone**: Academic, precise, and professional.
-      2. **Structure**: Maintain Markdown paragraph structure. Use blank lines to separate paragraphs.
-      3. **Math/Latex**: Preserve all mathematical notation exactly as is.
-      4. **Formatting**: If the input is a header or page number, format it subtly (e.g. *Page 1*).
-      5. **Output**: Return ONLY the translated text. No conversational filler or preamble.
+      Task: Translate the following ${sourceLang} text to ${targetLang}. return ONLY the translated text.
 
-      Source Text (${sourceLang}):
+      Source Text:
       ${text}`,
     });
 

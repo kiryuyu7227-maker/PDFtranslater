@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { PdfDocument, PdfPage, TranslationState, LanguageDirection } from '../types';
+import { PdfDocument, PdfPage, TranslationState, LanguageDirection, TranslationMode } from '../types';
 import { PdfViewer } from './PdfViewer';
 import { translateText } from '../services/geminiService';
 import { Button } from './Button';
-import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut, ArrowRightLeft, Settings, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Loader2, RefreshCw, ZoomIn, ZoomOut, ArrowRightLeft, Settings, AlertCircle, Sparkles, GraduationCap, MessageCircle } from 'lucide-react';
 
 interface WorkspaceProps {
   pdfFile: File;
@@ -29,6 +29,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
   const [translationCache, setTranslationCache] = useState<TranslationState>({});
   const [splitRatio, setSplitRatio] = useState<number>(50); // percentage
   const [direction, setDirection] = useState<LanguageDirection>('da-en');
+  const [mode, setMode] = useState<TranslationMode>('academic');
   const [errorState, setErrorState] = useState<'NONE' | 'API_KEY' | 'GENERIC'>('NONE');
 
   // Load PDF
@@ -52,7 +53,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
     const processPage = async () => {
       if (!pdfDoc) return;
 
-      const cacheKey = `${pageNumber}-${direction}`;
+      // Cache key now includes Mode so switching modes re-triggers translation
+      const cacheKey = `${pageNumber}-${direction}-${mode}`;
 
       // Check cache first
       if (translationCache[cacheKey]) {
@@ -72,8 +74,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
         // Basic reconstruction of text
         const text = textContent.items.map((item) => item.str).join(' ');
         
-        // Pass apiKey here
-        const translated = await translateText(text, direction, apiKey);
+        // Pass apiKey and mode here
+        const translated = await translateText(text, direction, mode, apiKey);
         
         setTranslation(translated);
         setTranslationCache(prev => ({ ...prev, [cacheKey]: translated }));
@@ -90,7 +92,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
     };
 
     processPage();
-  }, [pageNumber, pdfDoc, direction, apiKey]);
+  }, [pageNumber, pdfDoc, direction, apiKey, mode]);
 
   const handlePrev = () => setPageNumber(p => Math.max(1, p - 1));
   const handleNext = () => setPageNumber(p => Math.min(totalPages, p + 1));
@@ -111,29 +113,57 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
   return (
     <div className="h-screen flex flex-col bg-brand-dark text-white overflow-hidden">
       {/* Header */}
-      <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#0a0a0a]/80 backdrop-blur-md z-20">
+      <header className="h-16 border-b border-white/10 flex items-center justify-between px-4 md:px-6 bg-[#0a0a0a]/80 backdrop-blur-md z-20">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onClose} className="!p-2 !rounded-lg">
             <X className="w-5 h-5" />
           </Button>
-          <div className="flex flex-col">
-            <h2 className="font-display font-bold text-lg leading-tight truncate max-w-[200px]">{pdfFile.name}</h2>
-            <button 
-              onClick={toggleDirection}
-              className="text-xs text-brand-accent font-mono flex items-center gap-1.5 hover:text-white transition-colors mt-0.5 text-left"
-              title="Click to switch translation direction"
-            >
-              {direction === 'da-en' ? 'DANISH → ENGLISH' : 'ENGLISH → DANISH'}
-              <ArrowRightLeft className="w-3 h-3" />
-            </button>
+          <div className="flex flex-col gap-1">
+            <h2 className="font-display font-bold text-lg leading-none truncate max-w-[150px] md:max-w-[200px]">{pdfFile.name}</h2>
+            
+            {/* Controls Row */}
+            <div className="flex items-center gap-3">
+                {/* Direction Toggle */}
+                <button 
+                onClick={toggleDirection}
+                className="text-[10px] md:text-xs text-brand-accent font-mono flex items-center gap-1 hover:text-white transition-colors uppercase tracking-wider"
+                title="Switch Language"
+                >
+                {direction === 'da-en' ? 'DA → EN' : 'EN → DA'}
+                <ArrowRightLeft className="w-3 h-3" />
+                </button>
+
+                <div className="w-px h-3 bg-white/20"></div>
+
+                {/* Mode Toggle */}
+                <div className="flex bg-white/5 rounded-md p-0.5">
+                    <button
+                        onClick={() => setMode('academic')}
+                        className={`px-2 py-0.5 text-[10px] md:text-xs rounded flex items-center gap-1 transition-all ${mode === 'academic' ? 'bg-brand-purple text-white shadow-sm' : 'text-white/40 hover:text-white'}`}
+                        title="Academic Mode: Preserves Math & Formulas"
+                    >
+                        <GraduationCap className="w-3 h-3" />
+                        <span className="hidden md:inline">Academic</span>
+                    </button>
+                    <button
+                        onClick={() => setMode('general')}
+                        className={`px-2 py-0.5 text-[10px] md:text-xs rounded flex items-center gap-1 transition-all ${mode === 'general' ? 'bg-brand-warm text-black font-medium shadow-sm' : 'text-white/40 hover:text-white'}`}
+                        title="General Mode: Natural & Fluent"
+                    >
+                        <MessageCircle className="w-3 h-3" />
+                        <span className="hidden md:inline">General</span>
+                    </button>
+                </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/10">
+        {/* Pagination */}
+        <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/10 mx-2">
           <Button variant="ghost" onClick={handlePrev} disabled={pageNumber <= 1} className="!p-2 !h-8 !w-8 !rounded-full">
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="font-mono text-sm px-2 text-white/70">
+          <span className="font-mono text-sm px-2 text-white/70 whitespace-nowrap">
              {pageNumber} / {totalPages}
           </span>
           <Button variant="ghost" onClick={handleNext} disabled={pageNumber >= totalPages} className="!p-2 !h-8 !w-8 !rounded-full">
@@ -141,15 +171,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
           </Button>
         </div>
 
+        {/* Right Tools */}
         <div className="flex items-center gap-2">
-           <Button variant="ghost" onClick={onOpenSettings} className="!p-2 !text-white/40 hover:!text-white">
+           <Button variant="ghost" onClick={onOpenSettings} className="!p-2 !text-white/40 hover:!text-white hidden md:flex">
              <Settings className="w-4 h-4" />
            </Button>
-           <div className="w-px h-4 bg-white/10 mx-1"></div>
-           <Button variant="ghost" onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="!p-2">
+           <div className="w-px h-4 bg-white/10 mx-1 hidden md:block"></div>
+           <Button variant="ghost" onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="!p-2 hidden sm:flex">
              <ZoomOut className="w-4 h-4" />
            </Button>
-           <Button variant="ghost" onClick={() => setScale(s => Math.min(3, s + 0.2))} className="!p-2">
+           <Button variant="ghost" onClick={() => setScale(s => Math.min(3, s + 0.2))} className="!p-2 hidden sm:flex">
              <ZoomIn className="w-4 h-4" />
            </Button>
         </div>
@@ -160,22 +191,34 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
         
         {/* Left: PDF Original */}
         <div className="h-full bg-[#151515] relative transition-all duration-300" style={{ width: `${splitRatio}%` }}>
-          <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-white/10 text-white/60">
+          <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-white/10 text-white/60 pointer-events-none">
             ORIGINAL
           </div>
           <PdfViewer pdfDocument={pdfDoc} pageNumber={pageNumber} scale={scale} />
         </div>
 
         {/* Resizer Handle (Visual only for now, could be made interactive) */}
-        <div className="w-1 bg-[#2a2a2a] hover:bg-brand-accent cursor-col-resize z-30 transition-colors" />
+        <div className="w-1 bg-[#2a2a2a] hover:bg-brand-accent cursor-col-resize z-30 transition-colors hidden md:block" />
 
         {/* Right: AI Translation */}
-        <div className="h-full bg-brand-dark flex-1 overflow-y-auto relative p-8 md:p-12 border-l border-white/5" style={{ width: `${100 - splitRatio}%` }}>
-           <div className="absolute top-4 left-4 z-10 bg-brand-accent/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-accent/20 text-brand-accent">
-            AI TRANSLATED ({direction === 'da-en' ? 'EN' : 'DA'})
-          </div>
+        <div className="h-full bg-brand-dark flex-1 overflow-y-auto relative p-6 md:p-12 border-l border-white/5" style={{ width: `${100 - splitRatio}%` }}>
+           <div className="absolute top-4 left-4 z-10 flex gap-2">
+               <div className="bg-brand-accent/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-accent/20 text-brand-accent uppercase pointer-events-none">
+                    {direction === 'da-en' ? 'English' : 'Danish'} Output
+               </div>
+               {mode === 'academic' && (
+                    <div className="bg-brand-purple/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-purple/20 text-brand-purple flex items-center gap-1 pointer-events-none">
+                        <GraduationCap className="w-3 h-3" /> Academic
+                    </div>
+               )}
+               {mode === 'general' && (
+                    <div className="bg-brand-warm/10 backdrop-blur text-xs font-mono px-2 py-1 rounded border border-brand-warm/20 text-brand-warm flex items-center gap-1 pointer-events-none">
+                        <MessageCircle className="w-3 h-3" /> General
+                    </div>
+               )}
+           </div>
 
-          <div className="max-w-3xl mx-auto mt-6">
+          <div className="max-w-3xl mx-auto mt-8">
             {isTranslating && (
               <div className="space-y-6 animate-pulse">
                 <div className="h-4 bg-white/10 rounded w-3/4"></div>
@@ -184,7 +227,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ pdfFile, onClose, apiKey, 
                 <div className="h-32 bg-white/5 rounded border border-white/5"></div>
                 <div className="flex items-center gap-2 text-brand-accent text-sm font-mono mt-4">
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Translating via Gemini 3.0...</span>
+                  <span>Translating via Gemini 3.0 ({mode} mode)...</span>
                 </div>
               </div>
             )}
